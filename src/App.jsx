@@ -150,7 +150,7 @@ function Arena() {
 }
 
 /* ----------- Player con modello ----------- */
-const MODEL_SCALE = 0.7; // <-- riduci/aumenta qui la dimensione del personaggio
+const MODEL_SCALE = 0.7; // regola la dimensione del personaggio
 
 function Player({ state, krefs }) {
   const ref = useRef();
@@ -159,19 +159,21 @@ function Player({ state, krefs }) {
   useFrame((_, dt) => {
     t.current += dt;
     if (!ref.current) return;
-    // Il centro logico del player è a y=1. Con scala, i piedi stanno a y≈0*scale.
     ref.current.position.copy(state.player.pos);
     ref.current.position.y = state.player.pos.y - MODEL_SCALE;
-
     if (Math.abs(state.player.velY) < 0.01) {
       ref.current.position.y += Math.sin(t.current * 2) * 0.05;
     }
   });
 
+  // animMult scala la frequenza degli step con le stats (speed 10 => 1.0)
+  const animMult = Math.max(0.8, state.player.speed / 10);
+
   return (
     <group ref={ref} castShadow>
       <LowPolyRunner
         scale={MODEL_SCALE}
+        animMult={animMult}
         getSpeed={() => krefs?.speedRef?.current ?? 0}
         getMoveDir={() => (krefs?.moveDirRef?.current ?? new THREE.Vector3(0,0,1))}
       />
@@ -195,6 +197,7 @@ function Enemies({ state }) {
               roughness={0.3}
             />
           </mesh>
+          {/* HP bar */}
           <mesh position={[0, e.radius + (e.isBoss ? 0.6 : 0.3), 0]}>
             <boxGeometry args={[1.8, 0.06, 0.06]} />
             <meshBasicMaterial color="#111" />
@@ -311,7 +314,7 @@ function GameLoop({ gs, krefs }) {
       const willDash = keys.current["ShiftLeft"] && s.player.dashCooldown === 0;
       const speed = s.player.speed * (willDash ? 1.8 : 1);
 
-      // 👉 ref per animazione avatar
+      // ref per animazione avatar (velocità e direzione)
       if (krefs?.moveDirRef) krefs.moveDirRef.current.copy(worldDir);
       if (krefs?.speedRef)   krefs.speedRef.current = move.lengthSq() > 0 ? speed : 0;
 
@@ -390,7 +393,7 @@ function GameLoop({ gs, krefs }) {
         }
       }
 
-      // Enemies step + boss abilità
+      // Enemies + boss abilità
       for (const e of s.enemies) {
         const toP = s.player.pos.clone().sub(e.pos); toP.y = 0;
         if (toP.lengthSq() > 0) toP.normalize();
@@ -524,7 +527,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(true);
   const [canvasEl, setCanvasEl] = useState(null);
 
-  // ref condivise per animazione avatar
+  // ref per animazione avatar
   const moveDirRef = useRef(new THREE.Vector3());
   const speedRef   = useRef(0);
 
@@ -685,7 +688,7 @@ export default function App() {
               {levelChoices.map((u) => (
                 <Btn
                   key={u.key}
-                  className="text-left h-auto py-3 flex flex-col items-start gap-1"
+                  className="text-left h-auto py-3 flex flex col items-start gap-1"
                   onClick={() => {
                     set((s) => u.apply({ ...s, paused: false }));
                     setLevelChoices([]);
